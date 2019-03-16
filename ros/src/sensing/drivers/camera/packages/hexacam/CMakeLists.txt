@@ -4,6 +4,8 @@ project(hexacam)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+
+find_package(autoware_build_flags REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
@@ -119,7 +121,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS} 
 )
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O2 -Wall ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-O2 -Wall ${CMAKE_CXX_FLAGS}")
 
 ## Declare a C++ library
 # add_library(hexacam

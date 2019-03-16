@@ -1,11 +1,10 @@
 #include <iostream>
 #include <string>
 #include <sstream>
-#include "ladybug.h"
-#include "ladybugstream.h"
 #include <stdexcept>
 #include <unistd.h>
 #include <signal.h>
+#include <stdlib.h>
 
 #include <ros/ros.h>
 #include <sensor_msgs/image_encodings.h>
@@ -20,6 +19,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "ladybug.h"
+#include "ladybugstream.h"
 
 using namespace std;
 
@@ -117,12 +117,13 @@ void GetMatricesFromFile(ros::NodeHandle nh, sensor_msgs::CameraInfo &camerainfo
 	parseCameraInfo(cameraMat, distCoeff, imageSize, camerainfo_msg);
 }
 
-void publishImage(cv::Mat& image, ros::Publisher& image_pub, long int& count)
+void publishImage(cv::Mat& image, ros::Publisher& image_pub, long int& count, size_t camera_id)
 {
 	sensor_msgs::Image msg;
 	//publish*******************
 	msg.header.seq = count;
-	msg.header.frame_id = "camera";
+	std::string frame = "camera" + std::to_string(camera_id);
+	msg.header.frame_id = frame;
 	msg.header.stamp.sec = ros::Time::now().sec; msg.header.stamp.nsec = ros::Time::now().nsec;
 	msg.height = image.size().height; msg.width  = image.size().width;
 	msg.encoding = "rgb8";
@@ -269,7 +270,7 @@ LadybugError unlock_image( unsigned int bufferIndex )
 int main (int argc, char **argv)
 {
 	////ROS STUFF
-	ros::init(argc, argv, "lady_bug");
+	ros::init(argc, argv, "ladybug_camera");
 	ros::NodeHandle n;
 	ros::NodeHandle private_nh("~");
 
@@ -316,8 +317,8 @@ int main (int argc, char **argv)
 	}
 	else
 	{
-		ROS_INFO("Ladybug ImageScale scale must be (0,100]. Defaulting to 100 ");
-		image_scale=100;
+		ROS_INFO("Ladybug ImageScale scale must be (0,100]. Defaulting to 20 ");
+		image_scale=20;
 	}
 
 	ros::Publisher camera_info_pub;
@@ -358,11 +359,13 @@ int main (int argc, char **argv)
 			std::ostringstream out;
 			out << "image" << i;
 			cv::Mat rawImage(size, CV_8UC1, currentImage.pData + (i * size.width*size.height));
-			//cv::flip(mat, mat, -1);
 			cv::Mat image(size, CV_8UC3);
 			cv::cvtColor(rawImage, image, cv::COLOR_BayerBG2RGB);
 			cv::resize(image,image,cv::Size(size.width*image_scale/100, size.height*image_scale/100));
+			//
 			cv::transpose(image, image);
+			cv::flip(image, image, 1);
+
 			if (i==0)
 				image.copyTo(full_size);
 			else
@@ -370,23 +373,22 @@ int main (int argc, char **argv)
 
 			unlock_image(currentImage.uiBufferIndex);
 
-			publishImage(image, pub[LADYBUG_NUM_CAMERAS - i], count);
+			publishImage(image, pub[LADYBUG_NUM_CAMERAS - i], count, LADYBUG_NUM_CAMERAS - i);
 
 		}
 		//publish stitched one
-		publishImage(full_size, pub[0], count);
-
+		publishImage(full_size, pub[0], count, LADYBUG_NUM_CAMERAS);
 		ros::spinOnce();
 		loop_rate.sleep();
 		count++;
 	}
 
-	cout << "Stopping ladybug..." << endl;
+	cout << "Stopping ladybug_camera..." << endl;
 
 	// Shutdown
 	stop_camera();
 
-	ROS_INFO("ladybug stopped");
+	ROS_INFO("ladybug_camera stopped");
 
 	return 0;
 }

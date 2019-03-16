@@ -1,82 +1,58 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 2.8.12)
 project(rosinterface)
 
 include(FindPkgConfig)
+
+find_package(autoware_build_flags REQUIRED)
 find_package(catkin REQUIRED
-  roscpp
-  tf
-)
+        roscpp
+        tf
+        )
 
-pkg_check_modules(Qt5Core REQUIRED Qt5Core)
-pkg_check_modules(Qt5Widgets REQUIRED Qt5Widgets)
+set(CMAKE_AUTOMOC ON)
+#set(CMAKE_AUTOUIC ON)
+#set(CMAKE_AUTORCC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-###################################
-## catkin specific configuration ##
-###################################
-## The catkin_package macro generates cmake config files for your package
-## Declare things to be passed to dependent projects
-## INCLUDE_DIRS: uncomment this if you package contains header files
-## LIBRARIES: libraries you create in this project that dependent projects also need
-## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## DEPENDS: system dependencies of this project that dependent projects also need
+SET(CMAKE_CXX_FLAGS "-O2 -g -Wall ${CMAKE_CXX_FLAGS}")
+
+find_package(Qt5Core REQUIRED)
+find_package(Qt5Widgets REQUIRED)
+
 catkin_package(
-  INCLUDE_DIRS include/rosinterface
-  LIBRARIES rosinterface
-  CATKIN_DEPENDS roscpp
-#  DEPENDS system_lib
+        INCLUDE_DIRS include
+        LIBRARIES rosinterface
+        CATKIN_DEPENDS roscpp tf
 )
 
-###########
-## Build ##
-###########
-
-EXECUTE_PROCESS(
-  COMMAND pkg-config --variable=host_bins Qt5Core
-  OUTPUT_VARIABLE Qt5BIN
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-## Specify additional locations of header files
-## Your package locations should be listed before other locations
 include_directories(
-  ${catkin_INCLUDE_DIRS}
-  include/rosinterface
-  ${Qt5Core_INCLUDE_DIRS}
-  ${Qt5Widgets_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${catkin_INCLUDE_DIRS}
 )
 
-add_custom_command(
-  OUTPUT rosinterface_moc.cpp
-  COMMAND
-  ${Qt5BIN}/moc
-  "-o" "${CMAKE_CURRENT_SOURCE_DIR}/ROSInterface/rosinterface_moc.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/rosinterface/rosinterface.h"
-)
-add_custom_target(rosinterface_moc DEPENDS rosinterface_moc.cpp)
+qt5_wrap_cpp(rosinterface_SRC
+        include/rosinterface/rosinterface.h
+        )
 
-## Declare a cpp library
 add_library(rosinterface
-  ROSInterface/rosinterface.cpp
-)
+        ROSInterface/rosinterface.cpp
+        ${rosinterface_SRC}
+        )
 
 target_link_libraries(rosinterface
-  ${catkin_LIBRARIES}
-  ${Qt5Core_LIBRARIES}
-  ${Qt5Widgets_LIBRARIES}
-)
+        ${catkin_LIBRARIES}
+        Qt5::Core
+        Qt5::Widgets
+        )
 
-## Add cmake target dependencies of the executable/library
-## as an example, message headers may need to be generated before nodes
-add_dependencies(rosinterface
-  rosinterface_moc
-)
+install(DIRECTORY include/${PROJECT_NAME}/
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+        FILES_MATCHING PATTERN "*.h"
+        )
 
-#############
-## Install ##
-#############
 
-install(
-  DIRECTORY include/rosinterface
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.h"
-)
+install(TARGETS rosinterface
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+        )
