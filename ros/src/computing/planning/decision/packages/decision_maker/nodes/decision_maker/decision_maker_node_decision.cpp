@@ -1,5 +1,5 @@
-#include <numeric>
 #include <stdio.h>
+#include <numeric>
 #include <numeric>
 
 #include <geometry_msgs/PoseStamped.h>
@@ -18,33 +18,45 @@
 
 namespace decision_maker
 {
-double DecisionMakerNode::getPoseAngle(const geometry_msgs::Pose &pose)
+/* do not use this within callback */
+bool DecisionMakerNode::waitForEvent(cstring_t& key, const bool& flag)
 {
-  double r, p, y;
+  const uint32_t monitoring_rate = 20;  // Hz
 
-  tf::Quaternion quat(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w);
-  tf::Matrix3x3(quat).getRPY(r, p, y);
-
-  // convert to [-pi : pi]
-  return y;
+  ros::Rate loop_rate(monitoring_rate);
+  while (ros::ok())
+  {
+    if (isEventFlagTrue(key) == flag)
+    {
+      break;
+    }
+    loop_rate.sleep();
+  }
+  return true;
 }
 
-double DecisionMakerNode::calcPosesAngleDiffN(const geometry_msgs::Pose &p_from, const geometry_msgs::Pose &p_to)
+bool DecisionMakerNode::waitForEvent(cstring_t& key, const bool& flag, const double& timeout_sec)
 {
-  // convert to [-pi : pi]
-  return getPoseAngle(p_from) - getPoseAngle(p_to);
-}
+  const uint32_t monitoring_rate = 20;  // Hz
+  ros::Rate loop_rate(monitoring_rate);
 
-double DecisionMakerNode::calcPosesAngleDiff(const geometry_msgs::Pose &p_from, const geometry_msgs::Pose &p_to)
-{
-  // convert to [-pi : pi]
-  double diff = std::fmod(calcPosesAngleDiffN(p_from, p_to), 2 * M_PI);
-  diff = diff > M_PI ? diff - 2 * M_PI : diff < -M_PI ? 2 * M_PI + diff : diff;
-  diff = diff * 180 / M_PI;
-  return diff;
-}
+  ros::Time entry_time = ros::Time::now();
 
-double DecisionMakerNode::calcIntersectWayAngle(const autoware_msgs::Lane &laneinArea)
+  while (ros::ok())
+  {
+    if (isEventFlagTrue(key) == flag)
+    {
+      return true;
+    }
+    if ((ros::Time::now() - entry_time).toSec() >= timeout_sec)
+    {
+      break;
+    }
+    loop_rate.sleep();
+  }
+  return false;
+}
+double DecisionMakerNode::calcIntersectWayAngle(const autoware_msgs::Lane& laneinArea)
 {
   double diff = 0.0;
   if (laneinArea.waypoints.empty())
@@ -56,43 +68,88 @@ double DecisionMakerNode::calcIntersectWayAngle(const autoware_msgs::Lane &lanei
     const geometry_msgs::Pose InPose = laneinArea.waypoints.front().pose.pose;
     const geometry_msgs::Pose OutPose = laneinArea.waypoints.back().pose.pose;
 
-    diff = calcPosesAngleDiff(InPose, OutPose);
+    diff = amathutils::calcPosesAngleDiffDeg(InPose, OutPose);
   }
 
   return diff;
 }
 
-bool DecisionMakerNode::isLocalizationConvergence(double _x, double _y, double _z, double _roll, double _pitch,
-                                                  double _yaw)
+double DecisionMakerNode::getDistToWaypointIdx(const int wpidx) const
 {
-  static amathutils::point a;
-  static amathutils::point b;
+  double distance = 0.0;
+  geometry_msgs::Pose prev_pose = current_status_.pose;
 
+  for (unsigned int idx = 0; idx < current_status_.finalwaypoints.waypoints.size() - 1; idx++)
+  {
+    distance += amathutils::find_distance(prev_pose, current_status_.finalwaypoints.waypoints.at(idx).pose.pose);
+
+    if (current_status_.finalwaypoints.waypoints.at(idx).gid == wpidx)
+    {
+      break;
+    }
+
+    prev_pose = current_status_.finalwaypoints.waypoints.at(idx).pose.pose;
+  }
+
+  return distance;
+}
+
+double DecisionMakerNode::calcRequiredDistForStop(void) const
+{
+  static const double mu = 0.7;  // dry ground/ asphalt/ normal tire
+  static const double g = 9.80665;
+  static const double margin = 5;
+  static const double reaction_time = 0.3 + margin;  // system delay(sec)
+  const double velocity = amathutils::kmph2mps(current_status_.velocity);
+
+  const double free_running_distance = reaction_time * velocity;
+  const double braking_distance = velocity * velocity / (2 * g * mu);
+  const double distance_to_target = (free_running_distance + braking_distance) * 2 /* safety margin*/;
+
+  return distance_to_target;
+}
+
+bool DecisionMakerNode::isLocalizationConvergence(const geometry_msgs::Point& _current_point) const
+{
   static std::vector<double> distances;
   static uint32_t distances_count = 0;
+  static geometry_msgs::Point prev_point;
+  static const int param_convergence_count = 10;
 
   bool ret = false;
 
-  a.x = b.x;
-  a.y = b.y;
-  a.z = b.z;
+  // if current point is not set, localization is failure
+  if (_current_point.x == 0 && _current_point.y == 0 && _current_point.z == 0 && prev_point.x == 0 &&
+      prev_point.y == 0 && prev_point.z == 0)
+  {
+    return ret;
+  }
 
-  b.x = _x;
-  b.y = _y;
-  b.z = _z;
-
-  distances.push_back(amathutils::find_distance(&a, &b));
-  if (++distances_count > param_convergence_count_)
+  distances.push_back(amathutils::find_distance(prev_point, _current_point));
+  if (++distances_count > param_convergence_count) /* num of count to judge convergence*/
   {
     distances.erase(distances.begin());
     distances_count--;
-    double avg_distances = std::accumulate(distances.begin(), distances.end(), 0) / distances.size();
-    if (avg_distances <= param_convergence_threshold_)
+    double avg_distances = std::accumulate(distances.begin(), distances.end(), 0.0) / (double)distances.size();
+    if (avg_distances <= 2) /*meter*/
     {
-      ret =  ctx->setCurrentState(state_machine::DRIVE_STATE);
+      ret = true;
     }
   }
-  
+
+  prev_point = _current_point;
   return ret;
+}
+bool DecisionMakerNode::isArrivedGoal() const
+{
+  const auto goal_point = current_status_.finalwaypoints.waypoints.back().pose.pose.position;
+
+  if (amathutils::find_distance(goal_point, current_status_.pose.position) < goal_threshold_dist_
+      && fabs(current_status_.velocity) <= goal_threshold_vel_)
+  {
+    return true;
+  }
+
+  return false;
 }
 }

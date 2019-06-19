@@ -14,13 +14,17 @@ if (OPENMP_FOUND)
 endif ()
 
 find_package(CUDA)
+find_package(Eigen3 QUIET)
+find_package(autoware_build_flags REQUIRED)
+find_package(autoware_msgs REQUIRED)
+find_package(autoware_config_msgs REQUIRED)
 
-if (CUDA_FOUND)
+AW_CHECK_CUDA()
+
+if (USE_CUDA)
     add_definitions(-DCUDA_FOUND)
     list(APPEND PCL_OPENMP_PACKAGES ndt_gpu)
 endif ()
-
-find_package(Eigen3 QUIET)
 
 if (NOT EIGEN3_FOUND)
     # Fallback to cmake_modules
@@ -33,12 +37,6 @@ else ()
     set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 endif ()
 
-
-find_package(autoware_build_flags REQUIRED)
-
-find_package(autoware_msgs REQUIRED)
-
-find_package(autoware_config_msgs REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
         roscpp
         std_msgs
@@ -50,6 +48,8 @@ find_package(catkin REQUIRED COMPONENTS
         velodyne_pointcloud
         ndt_tku
         ndt_cpu
+        autoware_health_checker
+        jsk_rviz_plugins
         ${PCL_OPENMP_PACKAGES}
         autoware_msgs
         autoware_config_msgs
@@ -59,7 +59,15 @@ find_package(catkin REQUIRED COMPONENTS
 ## catkin specific configuration ##
 ###################################
 catkin_package(
-        CATKIN_DEPENDS std_msgs velodyne_pointcloud autoware_msgs autoware_config_msgs ndt_tku ndt_cpu ${PCL_OPENMP_PACKAGES}
+        CATKIN_DEPENDS
+        std_msgs
+        velodyne_pointcloud
+        autoware_msgs
+        autoware_config_msgs
+        ndt_tku
+        ndt_cpu
+        jsk_rviz_plugins
+        ${PCL_OPENMP_PACKAGES}
         DEPENDS PCL
 )
 
@@ -81,7 +89,7 @@ add_executable(ndt_mapping nodes/ndt_mapping/ndt_mapping.cpp)
 target_link_libraries(ndt_mapping ${catkin_LIBRARIES})
 add_dependencies(ndt_mapping ${catkin_EXPORTED_TARGETS})
 
-if (CUDA_FOUND)
+if (USE_CUDA)
     target_include_directories(ndt_matching PRIVATE ${CUDA_INCLUDE_DIRS})
     target_include_directories(ndt_mapping PRIVATE ${CUDA_INCLUDE_DIRS})
 endif ()
@@ -96,14 +104,6 @@ endif (NOT (PCL_VERSION VERSION_LESS "1.7.2"))
 add_executable(approximate_ndt_mapping nodes/approximate_ndt_mapping/approximate_ndt_mapping.cpp)
 target_link_libraries(approximate_ndt_mapping ${catkin_LIBRARIES})
 add_dependencies(approximate_ndt_mapping ${catkin_EXPORTED_TARGETS})
-
-add_executable(tf_mapping nodes/tf_mapping/tf_mapping.cpp)
-target_link_libraries(tf_mapping ${catkin_LIBRARIES})
-add_dependencies(tf_mapping ${catkin_EXPORTED_TARGETS})
-
-add_executable(lazy_ndt_mapping nodes/lazy_ndt_mapping/lazy_ndt_mapping.cpp)
-target_link_libraries(lazy_ndt_mapping ${catkin_LIBRARIES})
-add_dependencies(lazy_ndt_mapping ${catkin_EXPORTED_TARGETS})
 
 add_executable(queue_counter nodes/queue_counter/queue_counter.cpp)
 target_link_libraries(queue_counter ${catkin_LIBRARIES})
@@ -144,23 +144,20 @@ add_executable(icp_matching nodes/icp_matching/icp_matching.cpp)
 target_link_libraries(icp_matching ${catkin_LIBRARIES})
 add_dependencies(icp_matching ${catkin_EXPORTED_TARGETS})
 
-install(TARGETS ndt_matching_tku ndt_mapping_tku ndt_mapping_tku ndt_matching_monitor
+install(TARGETS
+            ndt_matching
+            ndt_mapping
+            approximate_ndt_mapping
+            ndt_mapping_tku
+            mapping
+            ndt_matching_monitor_lib
+            ndt_matching_monitor
+            icp_matching
+            queue_counter
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
         )
-
-install(TARGETS ndt_matching ndt_mapping approximate_ndt_mapping tf_mapping lazy_ndt_mapping queue_counter
-        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-        )
-
-install(TARGETS icp_matching
-        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-
 
 install(DIRECTORY launch/
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch

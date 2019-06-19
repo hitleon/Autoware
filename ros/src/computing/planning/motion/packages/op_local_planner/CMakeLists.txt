@@ -1,8 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(op_local_planner)
-set(ROS_VERSION $ENV{ROS_DISTRO})
-
-
 
 find_package(autoware_build_flags REQUIRED)
 
@@ -51,10 +48,6 @@ catkin_package(
 ###########
 
 
-if ("${ROS_VERSION}" MATCHES "(kinetic)")
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DROS_KINETIC")
-endif()
-
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
@@ -79,3 +72,19 @@ add_executable(op_motion_predictor nodes/op_motion_predictor/op_motion_predictor
 target_link_libraries(op_motion_predictor ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_dependencies(op_common_params op_trajectory_generator op_trajectory_evaluator op_behavior_selector op_motion_predictor ${catkin_EXPORTED_TARGETS})
+
+
+install(TARGETS
+        op_common_params
+        op_trajectory_generator
+        op_trajectory_evaluator
+        op_behavior_selector
+        op_motion_predictor
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+        )
+        
+install(DIRECTORY launch/
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+        PATTERN ".svn" EXCLUDE)

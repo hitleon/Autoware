@@ -54,6 +54,7 @@ target_link_libraries(vision_beyond_track
 
 add_dependencies(vision_beyond_track
         ${catkin_EXPORTED_TARGETS}
+        autoware_msgs_generate_messages_cpp
 )
 
 install(TARGETS beyond_track_lib vision_beyond_track
@@ -61,3 +62,7 @@ install(TARGETS beyond_track_lib vision_beyond_track
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
         )
+
+install(DIRECTORY launch/
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+        PATTERN ".svn" EXCLUDE)

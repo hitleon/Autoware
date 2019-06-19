@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>autoware_bag_tools</name>
-  <version>1.10.0</version>
+  <version>1.11.0</version>
   <description>Autoware modified bag_tools; ROS tools and scripts related to bagfiles</description>
   <maintainer email="jacob.lambert@tier4.jp">Jacob Lambert</maintainer>
 
@@ -15,5 +15,8 @@
   <depend>rosbag</depend>
   
   <depend>nmea_msgs</depend>
-  <depend>roslib</depend>  
+  <depend>roslib</depend>
+  <depend>tinyxml</depend>
+
+  <build_depend>cmake_modules</build_depend>
 </package>

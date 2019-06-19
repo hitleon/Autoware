@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
         grid_map_cv
         grid_map_msgs
         autoware_msgs
+        jsk_rviz_plugins
         )
 
 find_package(OpenMP)
@@ -37,6 +38,7 @@ catkin_package(
         grid_map_ros
         grid_map_cv
         grid_map_msgs
+        jsk_rviz_plugins
         INCLUDE_DIRS include
 )
 
@@ -54,7 +56,6 @@ include_directories(
         ${autoware_msgs_INCLUDE_DIRS}
         ${OpenCV_INCLUDE_DIRS}
 )
-link_directories(${PCL_LIBRARY_DIRS})
 link_directories(${OpenCV_LIBRARY_DIRS})
 
 #Euclidean Cluster
@@ -63,13 +64,15 @@ add_executable(lidar_euclidean_cluster_detect
         nodes/lidar_euclidean_cluster_detect/cluster.cpp)
 
 find_package(CUDA)
-if (${CUDA_FOUND})
-    INCLUDE(FindCUDA)
+find_package(Eigen3 QUIET)
+
+AW_CHECK_CUDA()
+
+if (USE_CUDA)
     message("-- USING ACCELERATED CLUSTERING --")
     message("Version: " ${CUDA_VERSION})
     message("Library: " ${CUDA_CUDA_LIBRARY})
     message("Runtime: " ${CUDA_CUDART_LIBRARY})
-    set(ROS_VERSION $ENV{ROS_DISTRO})
     target_compile_definitions(lidar_euclidean_cluster_detect PRIVATE
             GPU_CLUSTERING=1
             )
@@ -82,15 +85,20 @@ if (${CUDA_FOUND})
     target_link_libraries(lidar_euclidean_cluster_detect
             ${OpenCV_LIBRARIES}
             ${catkin_LIBRARIES}
-            ${PCL_LIBRARIES}
             ${YAML_CPP_LIBRARIES}
             gpu_euclidean_clustering)
+
+    install(TARGETS
+            gpu_euclidean_clustering
+            ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+            LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+            RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+            )
 
 else ()
     target_link_libraries(lidar_euclidean_cluster_detect
             ${OpenCV_LIBRARIES}
             ${catkin_LIBRARIES}
-            ${PCL_LIBRARIES}
             ${YAML_CPP_LIBRARIES})
 
 endif ()
@@ -106,9 +114,16 @@ if (OPENMP_FOUND)
             )
 endif ()
 
+install(DIRECTORY include/
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+
 install(TARGETS
         lidar_euclidean_cluster_detect
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+install(DIRECTORY launch/
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+        PATTERN ".svn" EXCLUDE)

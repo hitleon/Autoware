@@ -44,11 +44,16 @@ target_link_libraries(lidar_fake_perception_node
 )
 add_dependencies(lidar_fake_perception_node
   ${catkin_EXPORTED_TARGETS}
+  autoware_msgs_generate_messages_cpp
 )
 
 install(TARGETS
   lidar_fake_perception_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+install(DIRECTORY launch/
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+        PATTERN ".svn" EXCLUDE)

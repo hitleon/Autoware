@@ -123,7 +123,14 @@ install(TARGETS ${PROJECT_NAME}
 install(FILES rviz_plugin_description.xml
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
+install(FILES
+        node/image_viewer_plugin/autoware_logo.png
+        node/image_viewer_plugin/car.png
+        node/image_viewer_plugin/pedestrian.png
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/node/image_viewer_plugin/)
+
 add_dependencies(${PROJECT_NAME}
         ${catkin_EXPORTED_TARGETS}
+        autoware_msgs_generate_messages_cpp
         )
 #endif()

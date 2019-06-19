@@ -47,10 +47,6 @@ catkin_package(
 ## Build ##
 ###########
 
-if ("${ROS_VERSION}" MATCHES "(kinetic)")
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DROS_KINETIC")
-endif()
-
 include_directories(
         include
         ${catkin_INCLUDE_DIRS}
@@ -90,3 +86,16 @@ add_dependencies(op_car_simulator
         op_signs_simulator
         ${catkin_EXPORTED_TARGETS}
         )
+        
+install(TARGETS
+        op_car_simulator
+        op_perception_simulator
+        op_signs_simulator
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+        )
+        
+install(DIRECTORY launch/
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+        PATTERN ".svn" EXCLUDE)

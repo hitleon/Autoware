@@ -41,4 +41,10 @@ add_executable(vehicle_sender nodes/vehicle_sender/vehicle_sender.cpp)
 target_link_libraries(vehicle_sender ${catkin_LIBRARIES})
 add_dependencies(vehicle_sender
   ${catkin_EXPORTED_TARGETS}
+  autoware_msgs_generate_messages_cpp
   )
+
+install(TARGETS vehicle_sender vehicle_receiver
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

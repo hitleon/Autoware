@@ -18,8 +18,11 @@ find_package(CUDA)
 catkin_package(
         CATKIN_DEPENDS std_msgs sensor_msgs autoware_msgs
 )
-
-if ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64" AND CUDA_FOUND)
+find_library(DRIVEWORKS_FOUND NAMES driveworks)
+if ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"
+        AND CUDA_FOUND
+        AND DRIVEWORKS_FOUND
+)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
       set(DRIVEWORKS_LINKER_FLAGS "-Wl,--unresolved-symbols=ignore-in-object-files -Wl,--allow-shlib-undefined")
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -96,6 +99,20 @@ if ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64" AND CUDA_FOUND)
      # Use configure_file instead of file(COPY ...) so that if the input file
      # changes, it gets copied to the DEVEL space anyway
      configure_file(lib/libautoware_driveworks.so ${CATKIN_DEVEL_PREFIX}/lib/libautoware_driveworks.so COPYONLY)
+
+    install(TARGETS tensorrt_interface gmsl_interface
+            ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+            LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+            RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+    install(DIRECTORY launch/
+            DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+            PATTERN ".svn" EXCLUDE)
+
+    install(FILES
+            lib/libautoware_driveworks.so
+            DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/lib/libautoware_driveworks.so
+            )
 ELSE()
     message("autoware_driveworks_interface won't be built, CUDA and aarch64 are required.")
 ENDIF ()
